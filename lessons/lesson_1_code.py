@@ -1,4 +1,4 @@
-import numpy as np; np.random.seed(6)
+import numpy as np; rng = np.random.default_rng(6)
 import matplotlib.pyplot as plt
 
 
@@ -23,18 +23,12 @@ class MultiArmedBandit():
 	"""
 
 	def __init__( self, levers ):
-		#
-		# YOUR CODE HERE!
-		#	
-		self.levers = None
-		self.q_star = None
-		self.sampling_variance = None
+		self.levers = levers
+		self.q_star = rng.normal(0, 1, levers)  # true mean reward per arm
+		self.sampling_variance = 1
 			
 	def action( self, action ):
-		#
-		# YOUR CODE HERE!
-		#
-		return None
+		return rng.normal(self.q_star[action], self.sampling_variance)
 
 
 def banditAlgorithm( env, eps=0, maxiters=1000 ):
@@ -57,11 +51,18 @@ def banditAlgorithm( env, eps=0, maxiters=1000 ):
 	ep_reward = []; avg_reward = []
 
 	for _ in range(maxiters):
-		#
-		# YOUR CODE HERE!
-		#
-		ep_reward.append( 0 )
-		avg_reward.append( np.mean(ep_reward) )
+		# eps-greedy action selection
+		if rng.random() < eps:
+			a = rng.integers(levers)   # explore
+		else:
+			a = np.argmax(Q)                # exploit
+
+		reward = env.action(a)
+		N[a] += 1
+		Q[a] += (reward - Q[a]) / N[a]  # incremental mean update
+
+		ep_reward.append(reward)
+		avg_reward.append(np.mean(ep_reward))
 
 	return avg_reward, Q
 
