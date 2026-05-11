@@ -15,15 +15,14 @@ def random_dangerous_grid_world( environment ):
 		trajectory: an array containing the sequence of states visited by the agent
 	"""
 	trajectory = []
-	#
-	# YOUR CODE HERE!
-	#
+	environment.robot_state = environment.start_state
+	trajectory.append( environment.robot_state )
 	for step in range(10):
-		#
-		# YOUR CODE HERE!
-		#
-		if False: break # <- Hint: check if the state is terminal
-	
+		a = numpy.random.randint( 0, environment.action_space )
+		new_state = environment.sample( a )
+		trajectory.append( new_state )
+		if environment.is_terminal( new_state ): break
+		environment.robot_state = new_state
 	return trajectory
 
 
@@ -56,41 +55,93 @@ class RecyclingRobot():
 
 
 	def __init__( self ):
-
 		# Loading the default parameters
 		self.alfa = 0.7
 		self.beta = 0.7
 		self.r_search = 0.5
 		self.r_wait = 0.2
 
-		# Defining the environment variables
-		self.observation_space = None
-		self.action_space = None
-		self.actions = None
-		self.states = None
+		# Define the state and action space
+		self.states = {0: "high", 1: "low"}
+		self.observation_space = len(self.states)	
+		self.actions = {0: "search", 1: "wait", 2: "recharge"}
+		self.action_space = len(self.actions)
+
+		# Initialize the state
+		self.state = None
 
 
 	def reset( self ):
-		#
-		# YOUR CODE HERE!
-		#
+		self.state = 0  # start with high battery
 		return self.state
 
 
 	def step( self, action ):
 
+		# Default reward
 		reward = 0
-		#
-		# YOUR CODE HERE!
-		#
-		return self.state, reward, False, None
+
+		# If current state is HIGH battery
+		if self.state == 0:  # high
+
+			if action == 0:  # search
+				reward = self.r_search
+				# With probability alfa, stay high; otherwise go low
+				if numpy.random.rand() < self.alfa:
+					next_state = 0  # stay high
+				else:
+					next_state = 1  # go low
+
+			elif action == 1:  # wait
+				reward = self.r_wait
+				next_state = 0  # waiting keeps battery high
+
+			elif action == 2:  # recharge
+				reward = 0.0
+				next_state = 0  # already high, stays high
+
+			else:
+				raise ValueError("Invalid action")
+
+		# If current state is LOW battery
+		elif self.state == 1:  # low
+
+			if action == 0:  # search
+				reward = self.r_search
+				# With probability beta, stay low; otherwise 'fail' → go high or terminal
+				if numpy.random.rand() < self.beta:
+					next_state = 1  # stay low
+				else:
+					# In the book, failure might be modeled differently; here we send it to high
+					next_state = 0  # e.g., forced recharge or reset
+
+			elif action == 1:  # wait
+				reward = self.r_wait
+				next_state = 1  # waiting keeps battery low
+
+			elif action == 2:  # recharge
+				reward = 0.0
+				next_state = 0  # recharge → high
+
+			else:
+				raise ValueError("Invalid action")
+
+		else:
+			raise ValueError("Invalid state")
+
+		# Update internal state
+		self.state = next_state
+
+		# No terminal state in this simple version
+		done = False
+		info = None
+
+		return self.state, reward, done, info
+
 
 
 	def render( self ):
-
-		#
-		# YOUR CODE HERE!
-		#
+		print( f"Current state: '{self.states[self.state]}'" )
 		return True
 
 

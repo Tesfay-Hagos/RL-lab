@@ -18,17 +18,38 @@ def on_policy_mc_epsilon_soft( environment, maxiters=5000, eps=0.3, gamma=0.99 )
 		policy: 1-d dimensional array of action identifiers where index `i` corresponds to state id `i`
 	"""
 
-	p = [[0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]   
-	Q = [[0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
-	
-	#
-	# YOUR CODE HERE!
-	#
-	
-	deterministic_policy = [numpy.argmax(p[state]) for state in range(environment.observation_space)]	
+	p = [[1/environment.action_space for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+	Q = [[0.0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+	N = [[0   for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+	print(f"Initial policy (eps={eps}):")
+	print(f"{p}\n")
+	print(f"Initial action-value function:")
+	print(f"{Q}\n")
+	print(f"Initial action counts:")
+	print(f"{N}\n")
+	for _ in range(maxiters):
+		# generate episode using current eps-soft policy
+		episode = environment.sample_episode(p)
+
+		# compute returns backwards (every-visit)
+		G = 0
+		for state, action, reward in reversed(episode):
+			G = reward + gamma * G
+			N[state][action] += 1
+			Q[state][action] += (G - Q[state][action]) / N[state][action]
+
+			# update eps-soft policy for this state
+			best = numpy.argmax(Q[state])
+			for a in range(environment.action_space):
+				if a == best:
+					p[state][a] = 1 - eps + eps / environment.action_space
+				else:
+					p[state][a] = eps / environment.action_space
+
+	deterministic_policy = [numpy.argmax(p[state]) for state in range(environment.observation_space)]
 	return deterministic_policy
-	
-	
+
+
 def on_policy_mc_exploring_starts( environment, maxiters=5000, eps=0.3, gamma=0.99 ):
 	"""
 	Performs the on policy version of the every-visit MC control starting from different states
@@ -42,14 +63,28 @@ def on_policy_mc_exploring_starts( environment, maxiters=5000, eps=0.3, gamma=0.
 	Returns:
 		policy: 1-d dimensional array of action identifiers where index `i` corresponds to state id `i`
 	"""
-	p = [[0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]   
-	Q = [[0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
-	
-	#
-	# YOUR CODE HERE!
-	#
-	
-	deterministic_policy = [numpy.argmax(p[state]) for state in range(environment.observation_space)]	
+
+	p = [[1/environment.action_space for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+	Q = [[0.0 for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+	N = [[0   for _ in range(environment.action_space)] for _ in range(environment.observation_space)]
+
+	for _ in range(maxiters):
+		# exploring starts: force random first action then follow policy
+		uniform = [[1/environment.action_space]*environment.action_space for _ in range(environment.observation_space)]
+		episode = environment.sample_episode(uniform)
+
+		# compute returns backwards (every-visit)
+		G = 0
+		for state, action, reward in reversed(episode):
+			G = reward + gamma * G
+			N[state][action] += 1
+			Q[state][action] += (G - Q[state][action]) / N[state][action]
+
+			# greedy policy update
+			best = numpy.argmax(Q[state])
+			p[state] = [1.0 if a == best else 0.0 for a in range(environment.action_space)]
+
+	deterministic_policy = [numpy.argmax(p[state]) for state in range(environment.observation_space)]
 	return deterministic_policy
 
 

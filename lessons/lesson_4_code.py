@@ -40,9 +40,35 @@ def q_learning(environment, episodes, alpha, gamma, expl_func, expl_param):
 	q = numpy.zeros((environment.observation_space, environment.action_space))  # Q(s, a)
 	rews = numpy.zeros(episodes)
 	lengths = numpy.zeros(episodes)
-	#
-	# YOUR CODE HERE!
-	#
+	
+	for ep in range(episodes):
+		s = environment.reset()
+		done = False
+		total_reward = 0
+		steps = 0
+		
+		while not done:
+			# choose action with exploration function (epsilon-greedy)
+			a = expl_func(q, s, expl_param)
+			
+			# take action in the environment
+			s_next, r, done, _ = environment.step(a)
+			
+			# Q-learning target: R + gamma * max_a' Q(s', a')
+			best_next = q[s_next].max()
+			td_target = r + gamma * best_next * (0 if done else 1)
+			td_error = td_target - q[s, a]
+			
+			# update Q
+			q[s, a] += alpha * td_error
+			
+			total_reward += r
+			steps += 1
+			s = s_next
+		
+		rews[ep] = total_reward
+		lengths[ep] = steps
+	
 	policy = q.argmax(axis=1) # q.argmax(axis=1) automatically extract the policy from the q table
 	return policy, rews, lengths
 
@@ -66,9 +92,38 @@ def sarsa(environment, episodes, alpha, gamma, expl_func, expl_param):
 	q = numpy.zeros((environment.observation_space, environment.action_space))  # Q(s, a)
 	rews = numpy.zeros(episodes)
 	lengths = numpy.zeros(episodes)
-	#
-	# YOUR CODE HERE!
-	#	
+	
+	for ep in range(episodes):
+		s = environment.reset()
+		a = expl_func(q, s, expl_param)  # choose initial action
+		done = False
+		total_reward = 0
+		steps = 0
+		
+		while not done:
+			# take action
+			s_next, r, done, _ = environment.step(a)
+			
+			# choose next action using same exploration policy (on-policy)
+			if not done:
+				a_next = expl_func(q, s_next, expl_param)
+				td_target = r + gamma * q[s_next, a_next]
+			else:
+				td_target = r  # terminal state → no future value
+			
+			td_error = td_target - q[s, a]
+			
+			# update Q
+			q[s, a] += alpha * td_error
+			
+			total_reward += r
+			steps += 1
+			
+			s, a = s_next, (a_next if not done else a)
+		
+		rews[ep] = total_reward
+		lengths[ep] = steps
+	
 	policy = q.argmax(axis=1) # q.argmax(axis=1) automatically extract the policy from the q table
 	return policy, rews, lengths
 
